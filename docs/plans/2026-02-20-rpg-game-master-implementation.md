@@ -12,6 +12,22 @@
 
 ---
 
+## Post-Review Revisions (GLM-5 + Kimi K2.5)
+
+**Task 4 — Chunking**: Changed from 500-char character-level to **1200-char paragraph-aware** chunking. Split on `\n\n` first, then sentence boundaries. Overlap increased to 150 chars.
+
+**Task 6 — Entity Extraction**: Changed from plain JSON-in-text to **Claude tool_use** for structured extraction. Define extraction tools with input schemas for locations, NPCs, events, factions, lore. Batch size increased from 5 to **10 chunks**.
+
+**Task 8 — SQLite State**: Added **transaction management** via context manager for multi-table updates. Wrap state changes in `BEGIN IMMEDIATE` transactions.
+
+**Task 9 — Narrator**: Changed state change mechanism from **inline JSON tags** to **Claude tool_use**. Define tools: `move_player(location_id)`, `discover_entity(type, id)`, `end_conversation()`. Added **retry with exponential backoff** (3 attempts) for API calls.
+
+**Task 11 — Game Engine**: Response handling updated to process **tool_use content blocks** instead of parsing JSON from text. Added **conversation safety**: max 20 turns per conversation, all slash commands work during conversations. `strip_state_tags` removed (no longer needed).
+
+**Task 12 — Ingestion CLI**: Batch size updated to **10 chunks** per extraction call.
+
+---
+
 ### Task 1: Project Scaffolding
 
 **Files:**
