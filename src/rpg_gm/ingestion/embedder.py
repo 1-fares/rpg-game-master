@@ -4,6 +4,7 @@ import chromadb
 from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
 
 from rpg_gm.ingestion.chunker import Chunk
+from rpg_gm.world.loader import DEFAULT_WORLDS_DIR
 
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
@@ -11,7 +12,7 @@ DEFAULT_MODEL = "all-MiniLM-L6-v2"
 def _get_client(persist_dir: Path | None = None) -> chromadb.ClientAPI:
     if persist_dir:
         return chromadb.PersistentClient(path=str(persist_dir))
-    return chromadb.PersistentClient(path="worlds/_chroma")
+    return chromadb.PersistentClient(path=str(DEFAULT_WORLDS_DIR / "_chroma"))
 
 
 def _get_embedding_fn() -> SentenceTransformerEmbeddingFunction:
@@ -36,7 +37,7 @@ def embed_chunks(
         {"chunk_index": c.index, "page": c.page or 0, "preview": c.text[:100]}
         for c in chunks
     ]
-    collection.add(ids=ids, documents=documents, metadatas=metadatas)
+    collection.upsert(ids=ids, documents=documents, metadatas=metadatas)
     return collection
 
 

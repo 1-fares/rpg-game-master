@@ -205,13 +205,13 @@ def build_npc_prompt(
     return {"system": system, "messages": messages, "tools": NPC_TOOLS}
 
 
-def narrate(prompt: dict, max_retries: int = 3) -> anthropic.types.Message:
+def narrate(prompt: dict, max_retries: int = 3, client: anthropic.Anthropic | None = None) -> anthropic.types.Message:
     """Send prompt to Claude and return the full Message object.
 
     Contains text + tool_use blocks. Retries on rate limit and API errors
     with exponential backoff.
     """
-    client = anthropic.Anthropic()
+    client = client or anthropic.Anthropic()
     last_error = None
     for attempt in range(max_retries):
         try:
@@ -232,7 +232,7 @@ def narrate(prompt: dict, max_retries: int = 3) -> anthropic.types.Message:
     raise last_error  # Should not reach here
 
 
-def narrate_stream(prompt: dict, max_retries: int = 3):
+def narrate_stream(prompt: dict, max_retries: int = 3, client: anthropic.Anthropic | None = None):
     """Send prompt to Claude and yield text chunks, then tool_use blocks.
 
     Yields tuples of (type, data):
@@ -241,7 +241,7 @@ def narrate_stream(prompt: dict, max_retries: int = 3):
 
     Retries on rate limit and API errors with exponential backoff.
     """
-    client = anthropic.Anthropic()
+    client = client or anthropic.Anthropic()
     last_error = None
     for attempt in range(max_retries):
         try:

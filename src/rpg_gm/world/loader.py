@@ -5,7 +5,17 @@ from pathlib import Path
 
 from rpg_gm.world.models import World
 
-DEFAULT_WORLDS_DIR = Path("worlds")
+
+def _find_project_root() -> Path:
+    """Walk up from this file to find the directory containing pyproject.toml."""
+    current = Path(__file__).resolve().parent
+    for parent in [current] + list(current.parents):
+        if (parent / "pyproject.toml").exists():
+            return parent
+    return Path.cwd()
+
+
+DEFAULT_WORLDS_DIR = _find_project_root() / "worlds"
 
 
 def get_world_dir(world_name: str, base_dir: Path | None = None) -> Path:

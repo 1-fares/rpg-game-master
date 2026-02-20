@@ -32,8 +32,10 @@ def _make_world() -> World:
 
 
 def test_get_world_dir_default():
+    from rpg_gm.world.loader import DEFAULT_WORLDS_DIR
     result = get_world_dir("my_world")
-    assert result == Path("worlds") / "my_world"
+    assert result == DEFAULT_WORLDS_DIR / "my_world"
+    assert result.is_absolute()
 
 
 def test_get_world_dir_custom_base(tmp_path: Path):

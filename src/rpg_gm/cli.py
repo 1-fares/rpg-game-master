@@ -1,3 +1,4 @@
+import os
 import re
 from pathlib import Path
 
@@ -37,6 +38,10 @@ def main():
 @click.option("--name", "-n", prompt="World name", help="Name for this world")
 def ingest(file_path: str, name: str):
     """Ingest a PDF or text file into a playable world."""
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        show_error("ANTHROPIC_API_KEY not set. Export it before running ingest.")
+        raise SystemExit(1)
+
     world_slug = slugify(name)
 
     console.print(f"\n[bold]Ingesting[/bold] {file_path} as [cyan]{name}[/cyan] ({world_slug})\n")
@@ -194,6 +199,10 @@ def play(world_name: str | None):
         console.print("[bold]Available worlds:[/bold]")
         for w in worlds:
             console.print(f"  [cyan]{w}[/cyan]")
+        return
+
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        show_error("ANTHROPIC_API_KEY not set. Export it before running play.")
         return
 
     try:

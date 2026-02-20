@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import anthropic
+
 from rpg_gm.world.models import World
 from rpg_gm.world.loader import load_world, get_world_dir
 from rpg_gm.game.state import GameState
@@ -43,8 +45,13 @@ class GameEngine:
         self.state = GameState(str(saves_dir / "autosave.db"))
 
         # Pick a starting location (first location in the world)
+        if not self.world.locations:
+            raise ValueError(f"World '{world_name}' has no locations. Re-run ingestion.")
         start = next(iter(self.world.locations))
         self.state.init(world_name, start)
+
+        # Reusable API client
+        self.client = anthropic.Anthropic()
 
         # Conversation tracking
         self.talking_to: str | None = None  # NPC ID if in conversation
@@ -58,25 +65,27 @@ class GameEngine:
         show_info("Type /help for commands, or describe what you want to do.")
         console.print()
 
-        while True:
-            prompt_text = f"[{self.world.npcs[self.talking_to].name}] > " if self.talking_to else "> "
-            raw_input = get_input(prompt_text)
+        try:
+            while True:
+                prompt_text = f"[{self.world.npcs[self.talking_to].name}] > " if self.talking_to else "> "
+                raw_input = get_input(prompt_text)
 
-            if not raw_input:
-                continue
+                if not raw_input:
+                    continue
 
-            cmd = parse_input(raw_input)
+                cmd = parse_input(raw_input)
 
-            if cmd:
-                # All slash commands work regardless of conversation state
-                should_quit = self._handle_command(cmd)
-                if should_quit:
-                    break
-            else:
-                self._handle_free_input(raw_input)
+                if cmd:
+                    # All slash commands work regardless of conversation state
+                    should_quit = self._handle_command(cmd)
+                    if should_quit:
+                        break
+                else:
+                    self._handle_free_input(raw_input)
 
-        show_info("Game saved. Farewell, traveler.")
-        self.state.close()
+            show_info("Game saved. Farewell, traveler.")
+        finally:
+            self.state.close()
 
     def _handle_command(self, cmd) -> bool:
         """Handle a slash command. Returns True if the game should quit."""
@@ -202,8 +211,8 @@ class GameEngine:
             history=history,
             player_input=player_input,
         )
-        self._stream_and_handle(prompt, is_npc=False)
         self.state.add_message("user", player_input)
+        self._stream_and_handle(prompt, is_npc=False)
 
     def _do_npc_conversation(self, player_input: str):
         """Handle free-text input during NPC conversation."""
@@ -224,8 +233,8 @@ class GameEngine:
             history=history,
             player_input=player_input,
         )
-        self._stream_and_handle(prompt, is_npc=True, npc_name=npc.name)
         self.state.add_message("user", player_input)
+        self._stream_and_handle(prompt, is_npc=True, npc_name=npc.name)
 
     def _stream_and_handle(self, prompt: dict, is_npc: bool = False, npc_name: str = ""):
         """Stream Claude's response, display it, and handle tool calls."""
@@ -237,7 +246,7 @@ class GameEngine:
             console.print(f"[bold yellow]{npc_name}:[/bold yellow]")
 
         try:
-            for event_type, data in narrate_stream(prompt):
+            for event_type, data in narrate_stream(prompt, client=self.client):
                 if event_type == "text":
                     console.print(data, end="")
                     full_text += data
@@ -276,6 +285,9 @@ class GameEngine:
         elif name == "discover_entity":
             entity_type = inp.get("entity_type", "lore")
             entity_id = inp.get("entity_id", "")
+            # Normalize singular→plural to match get_discovered bucket names
+            pluralize = {"npc": "npcs", "faction": "factions", "event": "events"}
+            entity_type = pluralize.get(entity_type, entity_type)
             if entity_id:
                 self.state.discover(entity_type, entity_id)
 
