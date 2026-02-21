@@ -36,7 +36,8 @@ def main():
 @main.command()
 @click.argument("file_path", type=click.Path(exists=True))
 @click.option("--name", "-n", prompt="World name", help="Name for this world")
-def ingest(file_path: str, name: str):
+@click.option("--review", is_flag=True, help="Manually review each entity before accepting")
+def ingest(file_path: str, name: str, review: bool):
     """Ingest a PDF or text file into a playable world."""
     if not os.environ.get("ANTHROPIC_API_KEY"):
         show_error("ANTHROPIC_API_KEY not set. Export it before running ingest.")
@@ -88,22 +89,26 @@ def ingest(file_path: str, name: str):
             if quit_extraction:
                 break
             for entity in entity_list:
-                show_entity_for_review(entity_type, entity)
-                while True:
-                    choice = console.input("[bold]> [/bold]").strip().lower()
-                    if choice in ("a", "accept"):
-                        _add_entity_to_world(world, entity_type, entity)
-                        existing_names.append(entity.get("name", ""))
-                        show_info("Accepted.")
-                        break
-                    elif choice in ("s", "skip"):
-                        show_info("Skipped.")
-                        break
-                    elif choice in ("q", "quit"):
-                        quit_extraction = True
-                        break
-                    else:
-                        console.print("[dim]Press a (accept), s (skip), or q (quit)[/dim]")
+                if review:
+                    show_entity_for_review(entity_type, entity)
+                    while True:
+                        choice = console.input("[bold]> [/bold]").strip().lower()
+                        if choice in ("a", "accept"):
+                            _add_entity_to_world(world, entity_type, entity)
+                            existing_names.append(entity.get("name", ""))
+                            show_info("Accepted.")
+                            break
+                        elif choice in ("s", "skip"):
+                            show_info("Skipped.")
+                            break
+                        elif choice in ("q", "quit"):
+                            quit_extraction = True
+                            break
+                        else:
+                            console.print("[dim]Press a (accept), s (skip), or q (quit)[/dim]")
+                else:
+                    _add_entity_to_world(world, entity_type, entity)
+                    existing_names.append(entity.get("name", ""))
 
         if quit_extraction:
             console.print("[dim]Stopped extraction early.[/dim]")
