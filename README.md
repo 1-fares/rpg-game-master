@@ -8,9 +8,9 @@ No combat. The focus is exploration, discovery, and conversation.
 
 **Two-phase architecture:**
 
-1. **Ingestion** (`rpg-gm ingest <file>`) — Reads a PDF or text file, chunks the text, embeds it into ChromaDB for retrieval, then uses Claude to extract world entities (locations, NPCs, events, factions, lore). You review each extraction before it's added.
+1. **Ingestion** (`uv run rpg-gm ingest <file>`) — Reads a PDF or text file, chunks the text, embeds it into ChromaDB for retrieval, then uses Claude to extract world entities (locations, NPCs, events, factions, lore). You review each extraction before it's added.
 
-2. **Play** (`rpg-gm play <world>`) — Loads the world and drops you into the first location. Navigate between locations, talk to NPCs, examine details. Every interaction uses RAG retrieval + Claude narration, so responses stay grounded in the source material.
+2. **Play** (`uv run rpg-gm play <world>`) — Loads the world and drops you into the first location. Navigate between locations, talk to NPCs, examine details. Every interaction uses RAG retrieval + Claude narration, so responses stay grounded in the source material.
 
 ## Setup
 
