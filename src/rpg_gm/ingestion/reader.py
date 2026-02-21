@@ -15,7 +15,7 @@ def read_file(file_path: str) -> list[tuple[int, str]]:
         text = path.read_text(encoding="utf-8")
         return [(1, text)]
     else:
-        raise ValueError(f"Unsupported file type: {suffix}. Use .pdf or .txt")
+        raise ValueError(f"Unsupported file type: {suffix}. Use .pdf, .txt, or .md")
 
 
 def _read_pdf(path: Path) -> list[tuple[int, str]]:
