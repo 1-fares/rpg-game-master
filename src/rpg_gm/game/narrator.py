@@ -216,7 +216,7 @@ def narrate(prompt: dict, max_retries: int = 3, client: anthropic.Anthropic | No
     for attempt in range(max_retries):
         try:
             return client.messages.create(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6-20250610",
                 max_tokens=1024,
                 system=prompt["system"],
                 messages=prompt["messages"],
@@ -246,7 +246,7 @@ def narrate_stream(prompt: dict, max_retries: int = 3, client: anthropic.Anthrop
     for attempt in range(max_retries):
         try:
             with client.messages.stream(
-                model="claude-sonnet-4-20250514",
+                model="claude-sonnet-4-6-20250610",
                 max_tokens=1024,
                 system=prompt["system"],
                 messages=prompt["messages"],
