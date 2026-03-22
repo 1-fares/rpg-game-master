@@ -84,7 +84,7 @@ Rules:
 - If the player tries to go somewhere that doesn't exist in the world, gently redirect them toward known locations.
 - End each narration with subtle hooks — things to examine, people to talk to, paths to explore.
 
-Available locations the player can move to: {available_locations}
+Nearby locations the player can move to: {available_locations}
 
 Use the move_player tool when the player's action results in traveling to a new location.
 Use the discover_entity tool when the player learns something significant.
@@ -142,8 +142,11 @@ def build_gm_prompt(
         "People here: " + ", ".join(npc_names) if npc_names else "Nobody else is here."
     )
 
+    nearby_ids = {location_id} | set(location.connections)
     available_locations = ", ".join(
-        f"{loc.name} ({lid})" for lid, loc in world.locations.items()
+        f"{loc.name} ({lid})"
+        for lid, loc in world.locations.items()
+        if lid in nearby_ids
     )
 
     system = GM_SYSTEM_TEMPLATE.format(
@@ -205,33 +208,6 @@ def build_npc_prompt(
     return {"system": system, "messages": messages, "tools": NPC_TOOLS}
 
 
-def narrate(prompt: dict, max_retries: int = 3, client: anthropic.Anthropic | None = None) -> anthropic.types.Message:
-    """Send prompt to Claude and return the full Message object.
-
-    Contains text + tool_use blocks. Retries on rate limit and API errors
-    with exponential backoff.
-    """
-    client = client or anthropic.Anthropic()
-    last_error = None
-    for attempt in range(max_retries):
-        try:
-            return client.messages.create(
-                model="claude-sonnet-4-6-20250610",
-                max_tokens=1024,
-                system=prompt["system"],
-                messages=prompt["messages"],
-                tools=prompt.get("tools", []),
-            )
-        except (anthropic.RateLimitError, anthropic.APIStatusError) as e:
-            last_error = e
-            if attempt < max_retries - 1:
-                delay = 2**attempt
-                time.sleep(delay)
-            else:
-                raise
-    raise last_error  # Should not reach here
-
-
 def narrate_stream(prompt: dict, max_retries: int = 3, client: anthropic.Anthropic | None = None):
     """Send prompt to Claude and yield text chunks, then tool_use blocks.
 
@@ -272,17 +248,3 @@ def narrate_stream(prompt: dict, max_retries: int = 3, client: anthropic.Anthrop
             else:
                 raise
     raise last_error
-
-
-def extract_text_and_tools(
-    message: anthropic.types.Message,
-) -> tuple[str, list[dict]]:
-    """Extract text content and tool_use calls from a Message."""
-    text_parts = []
-    tool_calls = []
-    for block in message.content:
-        if block.type == "text":
-            text_parts.append(block.text)
-        elif block.type == "tool_use":
-            tool_calls.append({"name": block.name, "input": block.input})
-    return "\n".join(text_parts), tool_calls

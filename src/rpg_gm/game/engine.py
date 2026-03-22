@@ -3,7 +3,7 @@ from pathlib import Path
 import anthropic
 
 from rpg_gm.world.models import World
-from rpg_gm.world.loader import load_world, get_world_dir
+from rpg_gm.world.loader import load_world, get_world_dir, DEFAULT_WORLDS_DIR
 from rpg_gm.game.state import GameState
 from rpg_gm.game.commands import parse_input, find_npc_by_name, find_location_by_name
 from rpg_gm.game.narrator import (
@@ -35,7 +35,7 @@ MAX_CONVERSATION_TURNS = 20
 class GameEngine:
     def __init__(self, world_name: str, base_dir: Path | None = None):
         self.world_name = world_name
-        self.base_dir = base_dir or Path("worlds")
+        self.base_dir = base_dir or DEFAULT_WORLDS_DIR
         self.world = load_world(world_name, base_dir=self.base_dir)
         self.world_dir = get_world_dir(world_name, base_dir=self.base_dir)
 
@@ -56,6 +56,7 @@ class GameEngine:
         # Conversation tracking
         self.talking_to: str | None = None  # NPC ID if in conversation
         self.conversation_turns: int = 0
+        self._rag_warned: bool = False
 
     def run(self):
         """Main game loop."""
@@ -105,6 +106,8 @@ class GameEngine:
             show_discoveries(self.state.get_discovered(), self.world)
         elif cmd.name == "examine":
             self._do_examine(cmd.args)
+        elif cmd.name == "go":
+            self._do_go(cmd.args)
         elif cmd.name == "save":
             show_info("Game auto-saves continuously. Your progress is safe.")
         elif cmd.name == "load":
@@ -157,6 +160,17 @@ class GameEngine:
         npc_id = find_npc_by_name(npc_name, location.npcs, self.world)
 
         if not npc_id:
+            # Check if the match was ambiguous (multiple local NPCs matched)
+            name_lower = npc_name.lower()
+            local_matches = [
+                self.world.npcs[nid].name
+                for nid in location.npcs
+                if nid in self.world.npcs and name_lower in self.world.npcs[nid].name.lower()
+            ]
+            if len(local_matches) > 1:
+                show_error(f"Be more specific. Did you mean: {', '.join(local_matches)}?")
+                return
+
             all_npc_id = find_npc_by_name(npc_name, list(self.world.npcs.keys()), self.world)
             if all_npc_id:
                 npc = self.world.npcs[all_npc_id]
@@ -199,6 +213,25 @@ class GameEngine:
         )
         self._stream_and_handle(prompt, is_npc=False)
 
+    def _do_go(self, destination: str):
+        """Move to a connected location by name."""
+        if not destination:
+            show_info("Go where? Try /go <location name>")
+            return
+        location = self.world.locations[self.state.get_location()]
+        target_id = find_location_by_name(destination, location.connections, self.world)
+        if not target_id:
+            all_id = find_location_by_name(destination, list(self.world.locations.keys()), self.world)
+            if all_id:
+                show_error(f"You can't reach {self.world.locations[all_id].name} directly from here.")
+            else:
+                show_error(f"No location matching '{destination}' is known.")
+            return
+        self.state.set_location(target_id)
+        self._discover_current_location()
+        self._show_current_location()
+        self.state.add_journal_entry(f"Traveled to {self.world.locations[target_id].name}.")
+
     def _do_explore(self, player_input: str):
         """Handle free-text exploration input."""
         location_id = self.state.get_location()
@@ -223,6 +256,9 @@ class GameEngine:
             self.talking_to = None
             self.conversation_turns = 0
             return
+        elif self.conversation_turns == MAX_CONVERSATION_TURNS - 3:
+            npc = self.world.npcs[self.talking_to]
+            show_info(f"{npc.name} is beginning to look distracted. The conversation will end soon.")
 
         npc = self.world.npcs[self.talking_to]
         passages = self._query_rag(f"{npc.name} {player_input}")
@@ -306,7 +342,10 @@ class GameEngine:
                 persist_dir=self.world_dir / "chroma",
                 n_results=5,
             )
-        except Exception:
+        except Exception as e:
+            if not self._rag_warned:
+                show_error(f"Source retrieval unavailable: {e}")
+                self._rag_warned = True
             return []
 
     def _discover_current_location(self):

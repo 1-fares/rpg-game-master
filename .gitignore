@@ -19,5 +19,9 @@ worlds/
 .DS_Store
 Thumbs.db
 
+# Secrets
+.env
+set-api-key*
+
 # Test artifacts
 .pytest_cache/

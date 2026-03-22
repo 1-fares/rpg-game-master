@@ -8,15 +8,22 @@ from rpg_gm.world.loader import DEFAULT_WORLDS_DIR
 
 DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
+_client_cache: dict[str, chromadb.ClientAPI] = {}
+_embedding_fn: SentenceTransformerEmbeddingFunction | None = None
+
 
 def _get_client(persist_dir: Path | None = None) -> chromadb.ClientAPI:
-    if persist_dir:
-        return chromadb.PersistentClient(path=str(persist_dir))
-    return chromadb.PersistentClient(path=str(DEFAULT_WORLDS_DIR / "_chroma"))
+    path = str(persist_dir) if persist_dir else str(DEFAULT_WORLDS_DIR / "_chroma")
+    if path not in _client_cache:
+        _client_cache[path] = chromadb.PersistentClient(path=path)
+    return _client_cache[path]
 
 
 def _get_embedding_fn() -> SentenceTransformerEmbeddingFunction:
-    return SentenceTransformerEmbeddingFunction(model_name=DEFAULT_MODEL)
+    global _embedding_fn
+    if _embedding_fn is None:
+        _embedding_fn = SentenceTransformerEmbeddingFunction(model_name=DEFAULT_MODEL)
+    return _embedding_fn
 
 
 def embed_chunks(

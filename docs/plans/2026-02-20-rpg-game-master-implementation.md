@@ -43,7 +43,7 @@
 **Step 1: Initialize uv project**
 
 ```bash
-cd /home/fares/projects/rpg-game-master
+cd rpg-game-master
 uv init --lib --name rpg-gm
 ```
 

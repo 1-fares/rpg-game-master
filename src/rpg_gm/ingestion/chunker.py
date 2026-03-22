@@ -75,7 +75,8 @@ def chunk_text(
                 else:
                     break
 
-            current_offset += current_length - overlap_len
+            overlap_text_len = len("\n\n".join(overlap_parts)) if overlap_parts else 0
+            current_offset += len(chunk_text_str) - overlap_text_len
             current_parts = overlap_parts
             current_length = overlap_len
 

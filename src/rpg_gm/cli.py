@@ -94,9 +94,12 @@ def ingest(file_path: str, name: str, review: bool):
                     while True:
                         choice = console.input("[bold]> [/bold]").strip().lower()
                         if choice in ("a", "accept"):
-                            _add_entity_to_world(world, entity_type, entity)
-                            existing_names.append(entity.get("name", ""))
-                            show_info("Accepted.")
+                            added = _add_entity_to_world(world, entity_type, entity)
+                            if added:
+                                existing_names.append(entity.get("name", ""))
+                                show_info("Accepted.")
+                            else:
+                                show_info("Skipped (duplicate).")
                             break
                         elif choice in ("s", "skip"):
                             show_info("Skipped.")
@@ -107,8 +110,11 @@ def ingest(file_path: str, name: str, review: bool):
                         else:
                             console.print("[dim]Press a (accept), s (skip), or q (quit)[/dim]")
                 else:
-                    _add_entity_to_world(world, entity_type, entity)
-                    existing_names.append(entity.get("name", ""))
+                    added = _add_entity_to_world(world, entity_type, entity)
+                    if added:
+                        existing_names.append(entity.get("name", ""))
+                    else:
+                        show_info(f"Skipping duplicate: {entity.get('name') or entity.get('title', 'unknown')}")
 
         if quit_extraction:
             console.print("[dim]Stopped extraction early.[/dim]")
@@ -127,10 +133,20 @@ def ingest(file_path: str, name: str, review: bool):
     console.print(f"Run [bold]rpg-gm play {world_slug}[/bold] to explore.\n")
 
 
-def _add_entity_to_world(world: World, entity_type: str, entity: dict):
-    """Add a parsed entity dict to the world."""
+def _add_entity_to_world(world: World, entity_type: str, entity: dict) -> bool:
+    """Add a parsed entity dict to the world. Returns False if duplicate."""
     name = entity.get("name") or entity.get("title", "unknown")
     entity_id = slugify(name)
+
+    containers = {
+        "locations": world.locations,
+        "npcs": world.npcs,
+        "events": world.events,
+        "factions": world.factions,
+        "lore": world.lore,
+    }
+    if entity_id in containers.get(entity_type, {}):
+        return False
 
     if entity_type == "locations":
         world.locations[entity_id] = Location(
@@ -190,6 +206,8 @@ def _add_entity_to_world(world: World, entity_type: str, entity: dict):
             related_entities=[slugify(r) for r in entity.get("related_entities", [])],
             source_pages=entity.get("source_pages", []),
         )
+
+    return True
 
 
 @main.command()
