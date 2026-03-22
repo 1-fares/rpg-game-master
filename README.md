@@ -123,4 +123,4 @@ uv run pytest
 
 ## License
 
-MIT
+GPL-3.0. See [LICENSE](LICENSE).
